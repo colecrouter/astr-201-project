@@ -3,7 +3,7 @@
     import { onMount } from 'svelte';
     import { BluetoothSundial } from '../lib/BluetoothDevice';
     import ListGroup from '../lib/ListGroup.svelte';
-    import { GetSkyColour, IsNight } from '../lib/SkyColours';
+    import { getSkyColour, isNight } from '../lib/SkyColours';
 
     const bluetoothSundial = new BluetoothSundial();
     const sundialData = bluetoothSundial.data;
@@ -20,7 +20,7 @@
         [0, 0, 0],
         [0, 0, 0],
     ];
-    let isNight = true;
+    let night = true;
 
     onMount(() => {
         // We want to run this before the page loads, so we don't flashbang the user
@@ -37,11 +37,11 @@
             }
 
             // Set dark mode on the header
-            isNight = IsNight(data.azimuth);
-            header?.setAttribute('data-bs-theme', isNight ? 'dark' : 'light');
+            night = isNight(data.azimuth);
+            header?.setAttribute('data-bs-theme', night ? 'dark' : 'light');
 
             // Get the first colour using GetSkyColour
-            const firstColor = GetSkyColour(data.azimuth);
+            const firstColor = getSkyColour(data.azimuth);
             skyColors[0] = firstColor;
 
             // Make the second colour a darker version of the first
@@ -53,7 +53,7 @@
     });
 </script>
 
-<header class="text-body" style:--skyBg={`linear-gradient(to right, ${!isNight ? '#fff, #c7c7c7' : '#000, #383838'})`} bind:this={header}>
+<header class="text-body" style:--skyBg={`linear-gradient(to right, ${!night ? '#fff, #c7c7c7' : '#000, #383838'})`} bind:this={header}>
     <div class="background" style:--skyColour={`rgb(${skyColors[0].join(',')})`} />
     <div class="background" style:--skyColour={`rgb(${skyColors[1].join(',')})`} />
     <div class="background" style:--skyColour={`rgb(${skyColors[2].join(',')})`} />

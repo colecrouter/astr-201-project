@@ -10,7 +10,7 @@ const SkyColours: Record<SkyPeriod, SkyColour> = {
 };
 
 // Return a colour that represent the color of the sky at the given azimuth
-export const GetSkyColour = (azimuth: SundialData['azimuth']) => {
+export const getSkyColour = (azimuth: SundialData['azimuth']) => {
     // Return the colour of the sky at the given azimuth
     if (azimuth <= 90) {
         return SkyColours.Sunrise;
@@ -22,6 +22,6 @@ export const GetSkyColour = (azimuth: SundialData['azimuth']) => {
     return SkyColours.Night;
 };
 
-export const IsNight = (azimuth: SundialData['azimuth']) => {
+export const isNight = (azimuth: SundialData['azimuth']) => {
     return azimuth > 270;
 };
