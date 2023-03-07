@@ -21,7 +21,7 @@
     {#each [...formattedData] as [key, value]}
         <li class="list-group-item d-flex justify-content-between align-items-start">
             <div class="ms-2 me-auto">
-                <div class="fw-bold">{key}</div>
+                <div class="fw-bold">{key.split(/(?=[A-Z])/)?.join(' ')}</div>
             </div>
             <span class="badge bg-primary rounded-pill">
                 {#if typeof value === 'boolean'}

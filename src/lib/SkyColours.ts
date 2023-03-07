@@ -1,5 +1,3 @@
-import type { SundialData } from "./BluetoothDevice";
-
 type SkyPeriod = 'Sunrise' | 'Day' | 'Sunset' | 'Night';
 type SkyColour = [number, number, number];
 const SkyColours: Record<SkyPeriod, SkyColour> = {
@@ -10,18 +8,20 @@ const SkyColours: Record<SkyPeriod, SkyColour> = {
 };
 
 // Return a colour that represent the color of the sky at the given azimuth
-export const getSkyColour = (azimuth: SundialData['azimuth']) => {
+export const getSkyColour = (altitude: number, hourAngle: number) => {
     // Return the colour of the sky at the given azimuth
-    if (azimuth <= 90) {
-        return SkyColours.Sunrise;
-    } else if (azimuth <= 180) {
+    if (altitude <= -10) {
+        return SkyColours.Night;
+    } else if (altitude > 20) {
         return SkyColours.Day;
-    } else if (azimuth <= 270) {
+    } else {
+        if (hourAngle < 0) {
+            return SkyColours.Sunrise;
+        }
         return SkyColours.Sunset;
     }
-    return SkyColours.Night;
 };
 
-export const isNight = (azimuth: SundialData['azimuth']) => {
+export const isNight = (azimuth: number) => {
     return azimuth > 270;
 };

@@ -16,10 +16,6 @@ const stripTime = (date: Date) => {
     return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 };
 
-const normalizeAngle = (angle: number) => {
-    return angle < 0 ? angle + 360 : angle;
-};
-
 const toRadians = (degrees: number) => {
     return degrees * Math.PI / 180;
 };
@@ -44,23 +40,34 @@ export const hourAngle = (params: BasicParams & SolarParams & { declination: num
     const latitude = toRadians(params.latitude);
     const altitude = toRadians(params.altitude);
     const declination = toRadians(params.declination);
-
-    // Degrees
-    const longitude = normalizeAngle(params.longitude);
+    const azimuth = toRadians(params.azimuth);
 
     // Test by recreating the altitude
     // const alt = Math.sin(declination) * Math.sin(latitude) + Math.cos(declination) * Math.cos(latitude) * Math.cos(0);
     // console.log(toDegrees(Math.asin(alt)), params.altitude);
 
     // Derive α = sin^(−1)[sinδ*sinϕ + cosδ*cosϕ*cosγ] to get γ
-    // const y = Math.asin((Math.sin(altitude) - (Math.sin(latitude) * Math.sin(declination))) / -(Math.cos(latitude) * Math.cos(declination)));
-    const y = Math.asin(((Math.sin(latitude) * Math.sin(declination)) - Math.sin(altitude)) / (Math.cos(latitude) * Math.cos(declination)));
-    console.log((Math.sin(latitude) * Math.sin(declination)) - Math.sin(altitude));
-    const ha = y > 0 ? (toDegrees(y) / 15) - 12 : (toDegrees(y) / 15) + 12;
-    // const ha = (toDegrees(y) / 15) + 12;
+    const cosHA = (Math.sin(altitude) - (Math.sin(latitude) * Math.sin(declination))) / (Math.cos(latitude) * Math.cos(declination));
 
-    return ha;
+    // Determine if HA should be positive or negative
+    const HA = -Math.sign(azimuth) * Math.acos(Math.min(Math.max(cosHA, -1), 1));
+
+    return toDegrees(HA);
 };
+
+export const eqnOfTime = (params: BasicParams & TimeParams) => {
+    const date = stripTime(params.date);
+
+    const dayOfYear = Math.floor((date.getTime() - new Date(date.getFullYear(), 0, 0).getTime()) / 1000 / 60 / 60 / 24);
+    const G = (dayOfYear - 81) * ((2 * Math.PI) / 365);
+    const EoT = 9.87 * Math.sin(2 * G) - 7.53 * Math.cos(G) - 1.5 * Math.sin(G);
+
+    return EoT;
+};
+
+// export const analemma: (params: BasicParams & TimeParams) => number[] = (params) => {
+
+// };
 
 export const apparentSolarTime: (params: TimeParams & SolarParams & { hourAngle: number; }) => Date = (params) => {
     const date = stripTime(params.date);
@@ -75,9 +82,7 @@ export const localSolarTime: (params: BasicParams & TimeParams & SolarParams & {
     const ast = apparentSolarTime(params).getTime();
 
     // Calculate time offset
-    const dayOfYear = Math.floor((date.getTime() - new Date(date.getFullYear(), 0, 0).getTime()) / 1000 / 60 / 60 / 24);
-    const G = (dayOfYear - 81) * ((2 * Math.PI) / 365);
-    const EoT = 9.87 * Math.sin(2 * G) - 7.53 * Math.cos(G) - 1.5 * Math.sin(G);
+    const EoT = eqnOfTime(params);
 
     // Calculate time correction via Local Standard Time Meridian
     // const lstm = 15 * params.date.getTimezoneOffset() / 60; // I can't figure the proper equation out, but the equation below works
