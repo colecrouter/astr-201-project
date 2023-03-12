@@ -1,38 +1,42 @@
-# create-svelte
+# ASTR-201-project
+###### Final project by Cole Crouter & Braden Breit
 
-Everything you need to build a Svelte project, powered by [`create-svelte`](https://github.com/sveltejs/kit/tree/master/packages/create-svelte).
+## Summary
 
-## Creating a project
+This project uses an Arduino to create a digital sundial that can be read via computer or smartphone. When the user goes to the website, they are prompted for their location, and to connect and align the sundial. The website then displays relevant information to the Sun's current position in the sky.
 
-If you're seeing this, you've probably already done this step. Congrats!
+This project consists of two parts; the Arduino code and the website. The Arduino code is located in the `arduino` folder, and the website is located in the root directory.
+
+> Note: Only Google Chrome and Microsoft Edge are supported for the website. The website uses the Web Bluetooth API, which is only supported in these browsers.
+
+## Hardware
+
+The hardware used for this project is as follows:
+
+- Arduino Uno (or similar)
+- XX GL5516 photoresistors (50mm)
+- BLE wireless module
+- TODO
+
+\*Insert wiring diagram\*
+
+## Software
+
+\*Insert BLE configuration steps\*
+
+Downlod the sketch from the `arduino` folder and upload it to your Arduino.
+
+### Website
+
+##### The latest version of the website is hosted at https://mexican-man.github.io/astr-201-project/.
+
+The website is build with SvelteKit, but compiles to a static site. To run the website locally, clone this repository and run the following commands:
 
 ```bash
-# create a new project in the current directory
-npm create svelte@latest
-
-# create a new project in my-app
-npm create svelte@latest my-app
+npm install
+npm run preview
 ```
 
-## Developing
+## Images
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```bash
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
-
-## Building
-
-To create a production version of your app:
-
-```bash
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://kit.svelte.dev/docs/adapters) for your target environment.
+\*Insert images of the sundial\*
