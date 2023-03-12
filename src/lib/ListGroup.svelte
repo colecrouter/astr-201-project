@@ -10,9 +10,8 @@
     data.subscribe((data) => {
         formattedData = new Map<keyof SundialData, SundialData[keyof SundialData]>();
 
-        for (const key in data) {
-            // @ts-ignore
-            formattedData.set(key, data[key]);
+        for (const key in data!) {
+            formattedData.set(key as keyof SundialData, data[key as keyof SundialData]);
         }
     });
 </script>
@@ -21,7 +20,10 @@
     {#each [...formattedData] as [key, value]}
         <li class="list-group-item d-flex justify-content-between align-items-start">
             <div class="ms-2 me-auto">
-                <div class="fw-bold">{key.split(/(?=[A-Z])/)?.join(' ')}</div>
+                <div class="fw-bold">
+                    <!-- Split camelCase into words -->
+                    {key.split(/(?=[A-Z])/)?.join(' ')}
+                </div>
             </div>
             <span class="badge bg-primary rounded-pill">
                 {#if typeof value === 'boolean'}

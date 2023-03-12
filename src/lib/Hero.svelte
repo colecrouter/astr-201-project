@@ -49,8 +49,8 @@
     <div class="background" style:--skyColour={`rgb(${skyColors[1].join(',')})`} />
     <div class="background" style:--skyColour={`rgb(${skyColors[2].join(',')})`} />
     <div class="content">
-        {#if bluetoothSundial.connected}
-            <h1>Click Here to Connect to Bluetooth Device</h1>
+        {#if !bluetoothSundial.connected}
+            <h1 on:click={bluetoothSundial.connect()}>Click Here to Connect to Bluetooth Device</h1>
         {:else if !bluetoothSundial.data}
             <h1>Waiting for Device...</h1>
         {:else if $sundialData?.correctedTime}

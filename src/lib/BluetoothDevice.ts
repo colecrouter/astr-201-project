@@ -1,10 +1,11 @@
-import { declination, hourAngle, localSolarTime, apparentSolarTime, eqnOfTime } from "$lib/SunMath";
+import { declination, hourAngle, localSolarTime, apparentSolarTime, eqnOfTime, localSiderealTime } from "$lib/SunMath";
 import { writable, type Readable, type Writable } from "svelte/store";
 
 export interface SundialData {
     // TODO
     correctedTime: Date;
     apparentTime: Date;
+    siderealTime: Date;
     declination: number;
     azimuth: number;
     elevation: number;
@@ -28,20 +29,20 @@ export class BluetoothSundial {
 
     async scan() {
         // 17:05
-        // const azimuth = -119.35;
-        // const altitude = 14.53;
+        // const azimuth = -109.34;
+        // const altitude = 8.99;
 
         // 1 PM
-        // const azimuth = 176.32;
-        // const altitude = 33.43;
+        // const azimuth = -170.77;
+        // const altitude = 31.70;
 
         // Noon
-        const azimuth = 158.83;
-        const altitude = 31.35;
+        const azimuth = 171.62;
+        const altitude = 31.76;
 
         // 9 AM
-        // const azimuth = 115.06;
-        // const altitude = 12.04;
+        // const azimuth = 124.20;
+        // const altitude = 17.80;
 
         // TEST LAT LONG 50.43560173881614, -104.5553877673448
         const latitude = 50.4356017388161;
@@ -62,10 +63,13 @@ export class BluetoothSundial {
         const lst = localSolarTime({ latitude, longitude, date, azimuth, altitude, hourAngle: ha });
         // console.log(ast, '\n', lst);
 
+        const siderealTime = localSiderealTime({ localSolarTime: lst });
+
         // TEST DATA
         this._data.set({
             apparentTime: ast,
             correctedTime: lst,
+            siderealTime: siderealTime,
             declination: d,
             azimuth: azimuth,
             elevation: altitude,
@@ -78,6 +82,15 @@ export class BluetoothSundial {
     // TODO mostly
     async connect() {
         // TODO
+        if ("hid" in navigator === false) {
+            alert("Bluetooth not supported in this browser");
+            throw new Error("Bluetooth not supported");
+        }
+
+        const device = await navigator.bluetooth.requestDevice({
+            acceptAllDevices: true,
+        });
+        console.log(device);
     }
 
     async disconnect() {
@@ -92,4 +105,4 @@ export class BluetoothSundial {
         return this._data;
     }
 
-}
+};

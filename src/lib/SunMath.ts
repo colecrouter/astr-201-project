@@ -95,3 +95,12 @@ export const localSolarTime: (params: BasicParams & TimeParams & SolarParams & {
 
     return new Date(lst * 60 * 1000);
 };
+
+export const localSiderealTime: (params: { localSolarTime: Date; }) => Date = (params) => {
+    const lst = params.localSolarTime.getMinutes() + (params.localSolarTime.getHours() * 60);
+    // Calculate the sidereal time
+    const siderealTime = lst * 1.002737909;
+
+    // Add lst onto today but with no time
+    return new Date(params.localSolarTime.getTime() + (siderealTime * 60 * 1000));
+};
