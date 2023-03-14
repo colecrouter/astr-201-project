@@ -15,10 +15,13 @@ export interface SundialData {
     // analemma: number;
 }
 
+const POLLING_INTERVAL = 1000; // ms
+
 export class BluetoothSundial {
     private _data: Writable<SundialData | undefined>;
     private _device: BluetoothDevice | undefined;
     private _connected: Writable<boolean>;
+    private _interval: number | undefined;
 
     constructor() {
         this._data = writable();
@@ -27,9 +30,6 @@ export class BluetoothSundial {
     }
 
     private async eventHandler(event: Event) {
-        const { data, device, reportId } = (event as HIDInputReportEvent);
-        console.log(new Uint8Array(data.buffer));
-
         // 17:05
         // const azimuth = -109.34;
         // const altitude = 8.99;
@@ -80,25 +80,36 @@ export class BluetoothSundial {
             throw new Error("Bluetooth not supported");
         }
 
-        const device = await navigator.bluetooth.requestDevice({
-            acceptAllDevices: true,
-        });
+        const device = await navigator.bluetooth.requestDevice({ filters: [{ services: ['environmental_sensing'] }] });
 
         if (device === null) {
             alert("No device selected");
             throw new Error("No device selected");
         }
 
-        device.addEventListener("disconnect", this.disconnect);
-        device.addEventListener("inputreport", this.eventHandler);
+        if (device.gatt === undefined) {
+            alert("No GATT connection");
+            throw new Error("No GATT connection");
+        }
+
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService("environmental_sensing"); // 0x181A
+        const characteristic = await service.getCharacteristic("solar"); // 0x21
+
+        // Start polling for data
+        this._interval = setInterval(async () => {
+            const data = await characteristic.readValue();
+            console.log(new Uint8Array(data.buffer));
+            // TODO
+        }, POLLING_INTERVAL);
 
         this._device = device;
         this._connected.set(true);
     }
 
     async disconnect() {
-        this._device?.removeEventListener("disconnect", this.disconnect);
-        this._device?.removeEventListener("inputreport", this.eventHandler);
+        // Stop polling for data
+        clearInterval(this._interval);
 
         this._device = undefined;
         this._connected.set(false);

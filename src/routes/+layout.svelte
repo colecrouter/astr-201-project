@@ -13,7 +13,8 @@
 <style>
     :global(html),
     :global(body) {
-        padding: 0;
-        margin: 0;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: visible !important;
     }
 </style>
