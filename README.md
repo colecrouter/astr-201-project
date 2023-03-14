@@ -15,16 +15,21 @@ The hardware used for this project is as follows:
 
 - Arduino Uno (or similar)
 - XX GL5516 photoresistors (50mm)
-- BLE wireless module
+- BLE wireless module (we used the HM-18)
 - TODO
+
+> Note: Be aware of the voltage of your BLE module!
 
 \*Insert wiring diagram\*
 
+
 ## Software
 
-\*Insert BLE configuration steps\*
+### Arduino
 
-Downlod the sketch from the `arduino` folder and upload it to your Arduino.
+Downlod the sketch from the `arduino` folder and upload it to your Arduino. You may also wish to configure your BLE module using AT commands.
+
+> The chip we used did not support GATT, so we can't provide a Bluetooth device filter on the website. If you are using a chip that does support GATT, you could create your own service and characteristics.
 
 ### Website
 
@@ -36,6 +41,8 @@ The website is build with SvelteKit, but compiles to a static site. To run the w
 npm install
 npm run preview
 ```
+
+> Note: Chrome disables the Web Bluetooth API on insecure origins. To connect to the Arduino, you must either be on `localhost` or use HTTPS (or enable the `#enable-experimental-web-platform-features` flag).
 
 ## Images
 
