@@ -17,17 +17,19 @@ export interface SundialData {
 
 export class BluetoothSundial {
     private _data: Writable<SundialData | undefined>;
-    private _connected: boolean;
+    private _device: BluetoothDevice | undefined;
+    private _connected: Writable<boolean>;
 
     constructor() {
-        this._connected = false;
-        // this._data = writable(undefined);
         this._data = writable();
-
-        this.scan();
+        this._device = undefined;
+        this._connected = writable(false);
     }
 
-    async scan() {
+    private async eventHandler(event: Event) {
+        const { data, device, reportId } = (event as HIDInputReportEvent);
+        console.log(new Uint8Array(data.buffer));
+
         // 17:05
         // const azimuth = -109.34;
         // const altitude = 8.99;
@@ -48,21 +50,14 @@ export class BluetoothSundial {
         const latitude = 50.4356017388161;
         const longitude = -104.5553877673448;
 
-        // Get noon today
+        // Date will get stripped of time in the functions below
         const date = new Date();
-        // date.setHours(12, 0, 0, 0);
 
         const d = declination({ latitude, longitude, date });
         const ha = hourAngle({ latitude, longitude, azimuth, altitude, declination: d });
-        // console.log(ha);
-
         const equationOfTime = eqnOfTime({ date, latitude, longitude });
-
         const ast = apparentSolarTime({ date, azimuth, altitude, hourAngle: ha });
-
         const lst = localSolarTime({ latitude, longitude, date, azimuth, altitude, hourAngle: ha });
-        // console.log(ast, '\n', lst);
-
         const siderealTime = localSiderealTime({ localSolarTime: lst });
 
         // TEST DATA
@@ -79,10 +74,8 @@ export class BluetoothSundial {
         });
     }
 
-    // TODO mostly
     async connect() {
-        // TODO
-        if ("hid" in navigator === false) {
+        if ("bluetooth" in navigator === false) {
             alert("Bluetooth not supported in this browser");
             throw new Error("Bluetooth not supported");
         }
@@ -90,14 +83,28 @@ export class BluetoothSundial {
         const device = await navigator.bluetooth.requestDevice({
             acceptAllDevices: true,
         });
-        console.log(device);
+
+        if (device === null) {
+            alert("No device selected");
+            throw new Error("No device selected");
+        }
+
+        device.addEventListener("disconnect", this.disconnect);
+        device.addEventListener("inputreport", this.eventHandler);
+
+        this._device = device;
+        this._connected.set(true);
     }
 
     async disconnect() {
-        // TODO
+        this._device?.removeEventListener("disconnect", this.disconnect);
+        this._device?.removeEventListener("inputreport", this.eventHandler);
+
+        this._device = undefined;
+        this._connected.set(false);
     }
 
-    get connected(): boolean {
+    get connected(): Readable<boolean> {
         return this._connected;
     }
 

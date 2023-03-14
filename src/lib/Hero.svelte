@@ -2,29 +2,40 @@
     import type { BluetoothSundial } from '$lib/BluetoothDevice';
     import { getSkyColour, isNight } from '$lib/SkyColours';
     import { onMount } from 'svelte';
+    import { get } from 'svelte/store';
 
     export let bluetoothSundial: BluetoothSundial;
     export let userLocale: string = 'en-US';
 
     let sundialData = bluetoothSundial.data;
-    let night = false;
+    let connected = bluetoothSundial.connected;
+    let night = true;
 
     // Calculate a set of colors to represent the sky's color, based on the azimuth of the sun
-    type color = [number, number, number];
-    let skyColors: [color, color, color] = [
+    type color = ReturnType<typeof getSkyColour>;
+    type colors = [color, color, color];
+    const defaultSkyColors: colors = [
+        [31, 207, 195],
+        [8, 0, 255],
+        [31, 107, 207],
+    ];
+    let skyColors: colors = [
         [255, 255, 255],
         [255, 255, 255],
         [255, 255, 255],
     ];
 
     onMount(() => {
+        connected.subscribe((connected) => {
+            if (!connected) {
+                skyColors = defaultSkyColors;
+                night = true;
+            }
+        });
+
         sundialData.subscribe((data) => {
             if (!data) {
-                skyColors = [
-                    [31, 207, 195],
-                    [8, 0, 255],
-                    [31, 107, 207],
-                ];
+                skyColors = defaultSkyColors;
                 return;
             }
 
@@ -41,6 +52,16 @@
             // Make the third colour a lighter version of the first
             skyColors[2] = [Math.min(255, firstColor[0] + 60), Math.max(0, firstColor[1] - 50), Math.min(255, firstColor[2] + 50)];
         });
+
+        // Add tap event listener to content
+        const content = document.querySelector('.content');
+        content?.addEventListener('click', () => {
+            if (get(connected)) {
+                bluetoothSundial.disconnect();
+            } else {
+                bluetoothSundial.connect();
+            }
+        });
     });
 </script>
 
@@ -49,14 +70,19 @@
     <div class="background" style:--skyColour={`rgb(${skyColors[1].join(',')})`} />
     <div class="background" style:--skyColour={`rgb(${skyColors[2].join(',')})`} />
     <div class="content">
-        {#if !bluetoothSundial.connected}
-            <h1 on:click={bluetoothSundial.connect()}>Click Here to Connect to Bluetooth Device</h1>
+        {#if !$connected}
+            <!-- We need to bind, or else "this" becomes the HTML element, and not the BluetoothSundial object -->
+            <h1>Click Here to Connect to Bluetooth Device</h1>
         {:else if !bluetoothSundial.data}
             <h1>Waiting for Device...</h1>
         {:else if $sundialData?.correctedTime}
             <h1>It is {$sundialData?.correctedTime.toLocaleString(userLocale, { hour12: true, hour: 'numeric', minute: '2-digit' })}</h1>
         {:else}
             <h1>Waiting for Device...</h1>
+        {/if}
+
+        {#if $connected}
+            <small>Click to disconnect</small>
         {/if}
     </div>
     <div class="bottom">Scroll down for more info</div>
@@ -121,6 +147,7 @@
 
     header .content {
         z-index: 1;
+        cursor: pointer;
     }
 
     header h1 {
