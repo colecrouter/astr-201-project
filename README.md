@@ -13,23 +13,20 @@ This project consists of two parts; the Arduino code and the website. The Arduin
 
 The hardware used for this project is as follows:
 
-- Arduino Uno (or similar)
+- BLE enabled Arduino (Arduino Nano 33 BLE, ESP32, etc.)
 - XX GL5516 photoresistors (50mm)
-- BLE wireless module (we used the HM-18)
+- TODO: (Optional) name of compass module
 - TODO
 
-> Note: Be aware of the voltage of your BLE module!
-
 \*Insert wiring diagram\*
-
 
 ## Software
 
 ### Arduino
 
-Downlod the sketch from the `arduino` folder and upload it to your Arduino. You may also wish to configure your BLE module using AT commands.
+> This sketch takes advantage of the ArduinoBLE library, which is not included in the Arduino IDE by default. To install it, open the Arduino IDE, go to `Tools > Manage Libraries...`, search for `ArduinoBLE`, and install the latest version.
 
-> The chip we used did not support GATT, so we can't provide a Bluetooth device filter on the website. If you are using a chip that does support GATT, you could create your own service and characteristics.
+Downlod the sketch from the `arduino` folder and upload it to your Arduino.
 
 ### Website
 

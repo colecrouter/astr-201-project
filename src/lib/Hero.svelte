@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { BluetoothSundial } from '$lib/BluetoothDevice';
+    import type { BluetoothSundial } from '$lib/BluetoothSundial';
     import { getSkyColour, isNight } from '$lib/SkyColours';
     import { onMount } from 'svelte';
     import { get } from 'svelte/store';

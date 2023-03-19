@@ -1,17 +1,17 @@
 <script lang="ts">
     import type { Readable } from 'svelte/store';
-    import type { SundialData } from './BluetoothDevice';
+    import type { ComputedSundialData } from './BluetoothSundial';
 
-    export let data: Readable<SundialData | undefined>;
+    export let data: Readable<ComputedSundialData | undefined>;
     export let userLocale: string;
 
-    let formattedData = new Map<keyof SundialData, SundialData[keyof SundialData]>();
+    let formattedData = new Map<keyof ComputedSundialData, ComputedSundialData[keyof ComputedSundialData]>();
 
     data.subscribe((data) => {
-        formattedData = new Map<keyof SundialData, SundialData[keyof SundialData]>();
+        formattedData = new Map<keyof ComputedSundialData, ComputedSundialData[keyof ComputedSundialData]>();
 
         for (const key in data!) {
-            formattedData.set(key as keyof SundialData, data[key as keyof SundialData]);
+            formattedData.set(key as keyof ComputedSundialData, data[key as keyof ComputedSundialData]);
         }
     });
 </script>

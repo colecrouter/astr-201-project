@@ -1,3 +1,5 @@
+import { field } from 'geomag';
+
 type BasicParams = {
     latitude: number;
     longitude: number;
@@ -12,6 +14,8 @@ type SolarParams = {
     altitude: number;
 };
 
+const magneticDeclinationCache = new Map<string, number>();
+
 const stripTime = (date: Date) => {
     return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 };
@@ -24,7 +28,7 @@ const toDegrees = (radians: number) => {
     return radians * 180 / Math.PI;
 };
 
-export const declination: (params: BasicParams & TimeParams) => number = (params) => {
+export const declination = (params: BasicParams & TimeParams) => {
     const date = stripTime(params.date);
 
     // Get date as days of year (1-366)
@@ -69,14 +73,14 @@ export const eqnOfTime = (params: BasicParams & TimeParams) => {
 
 // };
 
-export const apparentSolarTime: (params: TimeParams & SolarParams & { hourAngle: number; }) => Date = (params) => {
+export const apparentSolarTime = (params: TimeParams & SolarParams & { hourAngle: number; }) => {
     const date = stripTime(params.date);
 
     const ast = (params.hourAngle + 180) * 4;
     return new Date(date.getTime() + ast * 60 * 1000);
 };
 
-export const localSolarTime: (params: BasicParams & TimeParams & SolarParams & { hourAngle: number; }) => Date = (params) => {
+export const localSolarTime = (params: BasicParams & TimeParams & SolarParams & { hourAngle: number; }) => {
     const date = stripTime(params.date);
     const longitude = Math.abs(params.longitude);
     const ast = apparentSolarTime(params).getTime();
@@ -86,7 +90,7 @@ export const localSolarTime: (params: BasicParams & TimeParams & SolarParams & {
 
     // Calculate time correction via Local Standard Time Meridian
     // const lstm = 15 * params.date.getTimezoneOffset() / 60; // I can't figure the proper equation out, but the equation below works
-    const tc = (4 * longitude) - params.date.getTimezoneOffset() - EoT;
+    const tc = (4 * longitude) - date.getTimezoneOffset() - EoT;
 
     // Calculate the actual approximate time
     // Get the minutes in the day from ast
@@ -96,7 +100,7 @@ export const localSolarTime: (params: BasicParams & TimeParams & SolarParams & {
     return new Date(lst * 60 * 1000);
 };
 
-export const localSiderealTime: (params: { localSolarTime: Date; }) => Date = (params) => {
+export const localSiderealTime = (params: { localSolarTime: Date; }) => {
     const lst = params.localSolarTime.getMinutes() + (params.localSolarTime.getHours() * 60);
     // Calculate the sidereal time
     const siderealTime = lst * 1.002737909;
@@ -104,3 +108,5 @@ export const localSiderealTime: (params: { localSolarTime: Date; }) => Date = (p
     // Add lst onto today but with no time
     return new Date(params.localSolarTime.getTime() + (siderealTime * 60 * 1000));
 };
+
+export const magneticDeclination: (params: BasicParams) => number = ({ latitude, longitude }) => field(latitude, longitude, 0).declination;
