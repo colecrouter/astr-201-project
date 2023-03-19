@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { BluetoothSundial } from '$lib/BluetoothSundial';
+    import { base } from '$app/paths';
     import 'bootstrap/dist/css/bootstrap.min.css';
 </script>
 
@@ -11,7 +11,7 @@
 
 <!-- GITHUB LOGO -->
 <a href="https://github.com/Mexican-Man/astr-201-project" aria-label="GitHub repository link" target="_blank" rel="noreferrer">
-    <img src="/github-mark-white.svg" alt="Github Logo" />
+    <img src="github-mark-white.svg" alt="Github Logo" />
 </a>
 
 <slot />
