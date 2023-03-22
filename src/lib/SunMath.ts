@@ -69,10 +69,6 @@ export const eqnOfTime = (params: BasicParams & TimeParams) => {
     return EoT;
 };
 
-// export const analemma: (params: BasicParams & TimeParams) => number[] = (params) => {
-
-// };
-
 export const apparentSolarTime = (params: TimeParams & SolarParams & { hourAngle: number; }) => {
     const date = stripTime(params.date);
 

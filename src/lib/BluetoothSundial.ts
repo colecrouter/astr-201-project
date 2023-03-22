@@ -9,6 +9,7 @@ export interface ComputedSundialData {
     declination: number;
     azimuth: number;
     elevation: number;
+    longitude: number;
     latitude: number;
     hourAngle: number;
     equationOfTime: number;
@@ -18,16 +19,15 @@ export interface ComputedSundialData {
 
 const POLLING_INTERVAL = 1000; // ms
 
-const SUNDIAL_SERVICE_UUID = 0x181A;
-const LOCATION_SERVICE_UUID = 0x1819;
-const AZIMUTH_CHARACTERISTIC_UUID = 0x2BE1;
-const ALTITUDE_CHARACTERISTIC_UUID = 0x2BE2;
-const NORTH_CHARACTERISTIC_UUID = 0x2AB0;
+const SUNDIAL_SERVICE_UUID: BluetoothServiceUUID = 0x181A;
+const LOCATION_SERVICE_UUID: BluetoothServiceUUID = 0x1819;
+const AZIMUTH_CHARACTERISTIC_UUID: BluetoothCharacteristicUUID = 0x2BE1;
+const ALTITUDE_CHARACTERISTIC_UUID: BluetoothCharacteristicUUID = 0x2A6C;
+const NORTH_CHARACTERISTIC_UUID: BluetoothCharacteristicUUID = 0x2AB0;
 
 export class BluetoothSundial {
     private _data: Writable<ComputedSundialData | undefined>;
     private _connected: Writable<boolean>;
-    private _interval: number | undefined;
     private _server: BluetoothRemoteGATTServer | undefined;
     private _location: Readable<GeolocationPosition>;
 
@@ -111,6 +111,7 @@ export class BluetoothSundial {
             declination: d,
             azimuth: azimuth,
             elevation: altitude,
+            longitude: coords.longitude,
             latitude: coords.latitude,
             hourAngle: ha,
             equationOfTime: equationOfTime,
@@ -144,13 +145,17 @@ export class BluetoothSundial {
         this._connected.set(true);
 
         // Start polling for data
-        this._interval = setInterval(this.eventHandler.bind(this), POLLING_INTERVAL);
+        (async () => {
+            while (this._server?.connected) {
+                await new Promise((resolve) => setTimeout(async () => {
+                    await this.eventHandler();
+                    resolve(true);
+                }, POLLING_INTERVAL));
+            }
+        })();
     }
 
     async disconnect() {
-        // Stop polling for data
-        clearInterval(this._interval);
-
         this._server = undefined;
         this._connected.set(false);
     }

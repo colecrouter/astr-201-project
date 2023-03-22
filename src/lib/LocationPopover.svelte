@@ -3,7 +3,7 @@
     import { onMount } from 'svelte';
     import type { Writable } from 'svelte/store';
 
-    export let location: Writable<GeolocationPosition>;
+    export let userLocation: Writable<GeolocationPosition>;
 
     let offcanvasElement: HTMLElement;
     let form: HTMLFormElement;
@@ -45,7 +45,7 @@
 
     const updateLongLat = (longitude: number, latitude: number) => {
         // Update the location
-        location.set({
+        userLocation.set({
             coords: {
                 accuracy: 0,
                 altitude: null,
@@ -82,7 +82,7 @@
             // Assuming we have permission, get the location
             const pos = (await new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject)).catch((err) => err)) as GeolocationPosition | GeolocationPositionError;
             if (pos instanceof GeolocationPosition) {
-                location.set(pos);
+                userLocation.set(pos);
                 return true;
             }
         }

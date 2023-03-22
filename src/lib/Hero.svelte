@@ -1,14 +1,14 @@
 <script lang="ts">
-    import type { BluetoothSundial } from '$lib/BluetoothSundial';
+    import type { ComputedSundialData } from '$lib/BluetoothSundial';
     import { getSkyColour, isNight } from '$lib/SkyColours';
     import { onMount } from 'svelte';
-    import { get } from 'svelte/store';
+    import type { Readable } from 'svelte/store';
 
-    export let bluetoothSundial: BluetoothSundial;
+    export let sundialData: Readable<ComputedSundialData | undefined>;
+    export let connected: Readable<boolean>;
     export let userLocale: string = 'en-US';
+    export let clickCallback: () => void;
 
-    let sundialData = bluetoothSundial.data;
-    let connected = bluetoothSundial.connected;
     let night = true;
 
     // Calculate a set of colors to represent the sky's color, based on the azimuth of the sun
@@ -55,13 +55,7 @@
 
         // Add tap event listener to content
         const content = document.querySelector('.content');
-        content?.addEventListener('click', () => {
-            if (get(connected)) {
-                bluetoothSundial.disconnect();
-            } else {
-                bluetoothSundial.connect();
-            }
-        });
+        content?.addEventListener('click', clickCallback);
     });
 </script>
 
@@ -73,7 +67,7 @@
         {#if !$connected}
             <!-- We need to bind, or else "this" becomes the HTML element, and not the BluetoothSundial object -->
             <h1>Click Here to Connect to Bluetooth Device</h1>
-        {:else if !bluetoothSundial.data}
+        {:else if !$sundialData}
             <h1>Waiting for Device...</h1>
         {:else if $sundialData?.correctedTime}
             <h1>It is {$sundialData?.correctedTime.toLocaleString(userLocale, { hour12: true, hour: 'numeric', minute: '2-digit' })}</h1>
