@@ -17,7 +17,14 @@ export interface ComputedSundialData {
     // analemma: number;
 }
 
-const POLLING_INTERVAL = 1000; // ms
+export const enum DeviceState {
+    DISCONNECTED,
+    CONNECTING,
+    CONNECTED,
+    READY,
+}
+
+const POLLING_INTERVAL = 3000; // ms
 
 const SUNDIAL_SERVICE_UUID: BluetoothServiceUUID = 0x181A;
 const LOCATION_SERVICE_UUID: BluetoothServiceUUID = 0x1819;
@@ -27,14 +34,16 @@ const NORTH_CHARACTERISTIC_UUID: BluetoothCharacteristicUUID = 0x2AB0;
 
 export class BluetoothSundial {
     private _data: Writable<ComputedSundialData | undefined>;
-    private _connected: Writable<boolean>;
+    private _connected: Writable<DeviceState>;
     private _server: BluetoothRemoteGATTServer | undefined;
     private _location: Readable<GeolocationPosition>;
+    private _characteristics: Map<BluetoothCharacteristicUUID, BluetoothRemoteGATTCharacteristic>;
 
     constructor(location: Readable<GeolocationPosition>) {
         this._data = writable();
-        this._connected = writable(false);
+        this._connected = writable(DeviceState.DISCONNECTED);
         this._location = location;
+        this._characteristics = new Map();
     }
 
     private async eventHandler() {
@@ -58,40 +67,43 @@ export class BluetoothSundial {
         // const latitude = 50.4356017388161;
         // const longitude = -104.5553877673448;
 
-        if (this._server === undefined) {
+        if (get(this._connected) === DeviceState.DISCONNECTED) {
+            // The event loop should exit after this, so we just return
+            return;
+        } else if (!this._server) {
             throw new Error("No server");
         } else if (this._location === undefined) {
             throw new Error("No location");
         } else if (!this._server.connected) {
-            throw new Error("Not connected");
+            // Sometimes the device disconnects, so we need to reconnect
+            console.debug("Reconnecting...");
+            await this._server.connect();
         }
+
+        console.debug("Polling...");
 
         // Extract long and lat from our device location
         const coords = (({ latitude, longitude }: GeolocationCoordinates) => ({ latitude, longitude }))(get(this._location).coords);
 
-        // Get services we need from the server
-        const sunService = await this._server.getPrimaryService(SUNDIAL_SERVICE_UUID);
-        const locService = await this._server.getPrimaryService(LOCATION_SERVICE_UUID)
-            .catch(() => undefined);
-
-        // Get all the characteristics we need from the corresponding services
-        const serviceCharsMap = new Map([
-            [sunService, [AZIMUTH_CHARACTERISTIC_UUID, ALTITUDE_CHARACTERISTIC_UUID]],
-            [locService, [NORTH_CHARACTERISTIC_UUID]]
-        ]);
-        const [azimuthChar, altitudeChar, northChar] = await Promise.all(
-            [...serviceCharsMap.entries()]
-                .map(async ([service, uuids]) => await Promise.all(uuids
-                    .map(async (uuid) => await service?.getCharacteristic(uuid)))))
-            .then((charArrays) => charArrays.flat());
+        // Grabs characteristics from map, saved in map by connect()
+        let azimuthChar = this._characteristics.get(AZIMUTH_CHARACTERISTIC_UUID);
+        let altitudeChar = this._characteristics.get(ALTITUDE_CHARACTERISTIC_UUID);
+        let northChar = this._characteristics.get(NORTH_CHARACTERISTIC_UUID);
 
         // Extract the azimuth and altitude from the characteristics; we can't read to northChar 
         const [azimuth, altitude] = await Promise.all([azimuthChar, altitudeChar]
-            .map(async (char) => (await char!.readValue()).getFloat32(0, true))); // char won't be undefined, because sunService is guaranteed to exist
+            .map(async (char) => (await char!  // char won't be undefined, because sunService is guaranteed to exist
+                .readValue()
+                .catch((e) => console.log(e)))
+                ?.getFloat32(0, true)));
+
+        // If we can't read the azimuth or altitude, return and try again later
+        if (azimuth === undefined || altitude === undefined) { return; }
 
         // If the sundial supports magnetic declination, send it to the device so the user can align the sundial
         const magDec = magneticDeclination(coords);
-        northChar?.writeValue(new Float32Array([magDec]));
+        await northChar?.writeValue(new Float32Array([magDec]))
+            .catch(() => undefined);
 
         // Date will get stripped of time in the functions below
         const date = new Date();
@@ -141,13 +153,46 @@ export class BluetoothSundial {
             throw new Error("No GATT connection");
         }
 
+        console.debug("Connecting to GATT Server...");
+        this._connected.set(DeviceState.CONNECTING);
         this._server = await device.gatt.connect();
-        this._connected.set(true);
+        this._connected.set(DeviceState.CONNECTED);
+
+        // Grab characteristics from the sundial service
+        // Get services we need from the server
+        const [sunService, locService] = await Promise.all([
+            this._server.getPrimaryService(SUNDIAL_SERVICE_UUID),
+            this._server.getPrimaryService(LOCATION_SERVICE_UUID).catch(() => undefined)
+        ]);
+
+        console.debug("Got services: ", sunService, locService);
+
+        // Get all the characteristics we need from the corresponding services
+        const serviceCharsMap = new Map([
+            [sunService, [AZIMUTH_CHARACTERISTIC_UUID, ALTITUDE_CHARACTERISTIC_UUID]],
+            [locService, [NORTH_CHARACTERISTIC_UUID]]
+        ]);
+        const chars = await Promise.all(
+            [...serviceCharsMap.entries()]
+                .map(async ([service, uuids]) => await Promise.all(uuids
+                    .map(async (uuid) => {
+                        const a = await service?.getCharacteristic(uuid);
+                        a && this._characteristics.set(uuid, a);
+                        return a;
+                    }))))
+            .then((charArrays) => charArrays.flat());
+
+        console.debug("Got characteristics: ", ...chars);
+        this._connected.set(DeviceState.READY);
 
         // Start polling for data
+        console.debug("Starting event handler");
         (async () => {
-            while (this._server?.connected) {
+            // Don't use this._server.connected, because we use that to reconnect
+            // Use get(this._connected) instead
+            while (get(this._connected) === DeviceState.READY) {
                 await new Promise((resolve) => setTimeout(async () => {
+                    // If the sundial is disconnected, this will throw an error, which will exit the loop
                     await this.eventHandler();
                     resolve(true);
                 }, POLLING_INTERVAL));
@@ -156,11 +201,12 @@ export class BluetoothSundial {
     }
 
     async disconnect() {
+        this._server?.disconnect();
         this._server = undefined;
-        this._connected.set(false);
+        this._connected.set(DeviceState.DISCONNECTED);
     }
 
-    get connected(): Readable<boolean> {
+    get connected(): Readable<DeviceState> {
         return this._connected;
     }
 

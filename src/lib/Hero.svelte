@@ -1,11 +1,11 @@
 <script lang="ts">
-    import type { ComputedSundialData } from '$lib/BluetoothSundial';
+    import { DeviceState, type ComputedSundialData } from '$lib/BluetoothSundial';
     import { getSkyColour, isNight } from '$lib/SkyColours';
     import { onMount } from 'svelte';
     import type { Readable } from 'svelte/store';
 
     export let sundialData: Readable<ComputedSundialData | undefined>;
-    export let connected: Readable<boolean>;
+    export let connected: Readable<DeviceState>;
     export let userLocale: string = 'en-US';
     export let clickCallback: () => void;
 
@@ -64,15 +64,21 @@
     <div class="background" style:--skyColour={`rgb(${skyColors[1].join(',')})`} />
     <div class="background" style:--skyColour={`rgb(${skyColors[2].join(',')})`} />
     <div class="content">
-        {#if !$connected}
+        {#if $connected === DeviceState.DISCONNECTED}
             <!-- We need to bind, or else "this" becomes the HTML element, and not the BluetoothSundial object -->
             <h1>Click Here to Connect to Bluetooth Device</h1>
-        {:else if !$sundialData}
-            <h1>Waiting for Device...</h1>
-        {:else if $sundialData?.correctedTime}
-            <h1>It is {$sundialData?.correctedTime.toLocaleString(userLocale, { hour12: true, hour: 'numeric', minute: '2-digit' })}</h1>
-        {:else}
-            <h1>Waiting for Device...</h1>
+        {:else if $connected === DeviceState.CONNECTING}
+            <h1>Connecting...</h1>
+        {:else if $connected === DeviceState.CONNECTED}
+            <h1>Just a moment...</h1>
+        {:else if $connected === DeviceState.READY}
+            {#if !$sundialData}
+                <h1>Waiting for data...</h1>
+            {:else if $sundialData?.correctedTime}
+                <h1>It is {$sundialData?.correctedTime.toLocaleString(userLocale, { hour12: true, hour: 'numeric', minute: '2-digit' })}</h1>
+            {:else}
+                <h1>Waiting for Device...</h1>
+            {/if}
         {/if}
 
         {#if $connected}
@@ -142,6 +148,7 @@
     header .content {
         z-index: 1;
         cursor: pointer;
+        user-select: none;
     }
 
     header h1 {

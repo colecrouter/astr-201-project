@@ -4,7 +4,7 @@
     import Hero from '$lib/Hero.svelte';
     import ListGroup from '$lib/ListGroup.svelte';
     import LocationPopover from '$lib/LocationPopover.svelte';
-    import { onMount } from 'svelte';
+    import { onDestroy, onMount } from 'svelte';
     import { get, writable } from 'svelte/store';
 
     const userLocale = (browser && navigator.languages && (navigator.languages.length ? navigator.languages[0] : navigator.language)) || 'en-US';
@@ -22,6 +22,11 @@
         body?.setAttribute('data-bs-theme', window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
     });
 
+    // Mainly for development, so we don't have to keep refreshing the page
+    onDestroy(() => {
+        bluetoothSundial.disconnect();
+    });
+
     const clickCallback = async () => {
         // We only really need to worry about this the first time the user clicks
         modalClickedOnce = true;
@@ -34,16 +39,18 @@
         */
 
         // Wait for the user's location to be available
-        let unsub: () => void;
-        await new Promise((resolve) => {
-            // The first write to the store will be undefined, so we need to wait for the second write
-            // hence, this unsub grossness
-            unsub = userLocation.subscribe((v) => {
-                if (v) return;
-                resolve(null);
+        if (!get(userLocation)) {
+            let unsub: () => void;
+            await new Promise((resolve) => {
+                // The first write to the store will be undefined, so we need to wait for the second write
+                // hence, this unsub grossness
+                unsub = userLocation.subscribe((v) => {
+                    if (v) return;
+                    resolve(null);
+                });
             });
-        });
-        unsub!(); // Unsub will always be defined here
+            unsub!(); // Unsub will always be defined here
+        }
 
         // Then, attempt to connect to the device
         if (get(connected)) {
