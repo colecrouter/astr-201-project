@@ -94,6 +94,7 @@
         text-align: center;
         width: 100%;
         height: 100vh;
+        height: 100svh;
         max-height: 1000px;
         padding: 3rem;
         display: flex;

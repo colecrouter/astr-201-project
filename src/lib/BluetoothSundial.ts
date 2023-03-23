@@ -26,11 +26,11 @@ export const enum DeviceState {
 
 const POLLING_INTERVAL = 3000; // ms
 
-const SUNDIAL_SERVICE_UUID: BluetoothServiceUUID = 0x181A;
-const LOCATION_SERVICE_UUID: BluetoothServiceUUID = 0x1819;
-const AZIMUTH_CHARACTERISTIC_UUID: BluetoothCharacteristicUUID = 0x2BE1;
-const ALTITUDE_CHARACTERISTIC_UUID: BluetoothCharacteristicUUID = 0x2A6C;
-const NORTH_CHARACTERISTIC_UUID: BluetoothCharacteristicUUID = 0x2AB0;
+const SUNDIAL_SERVICE_UUID = 0x181A satisfies BluetoothServiceUUID;
+const LOCATION_SERVICE_UUID = 0x1819 satisfies BluetoothServiceUUID;
+const AZIMUTH_CHARACTERISTIC_UUID = 0x2BE1 satisfies BluetoothCharacteristicUUID;
+const ALTITUDE_CHARACTERISTIC_UUID = 0x2A6C satisfies BluetoothCharacteristicUUID;
+const NORTH_CHARACTERISTIC_UUID = 0x2AB0 satisfies BluetoothCharacteristicUUID;
 
 export class BluetoothSundial {
     private _data: Writable<ComputedSundialData | undefined>;
@@ -47,88 +47,92 @@ export class BluetoothSundial {
     }
 
     private async eventHandler() {
-        // 17:05
-        // const azimuth = -109.34;
-        // const altitude = 8.99;
+        try {
+            // 17:05
+            // const azimuth = -109.34;
+            // const altitude = 8.99;
 
-        // 1 PM
-        // const azimuth = -170.77;
-        // const altitude = 31.70;
+            // 1 PM
+            // const azimuth = -170.77;
+            // const altitude = 31.70;
 
-        // Noon
-        // const azimuth = 171.62;
-        // const altitude = 31.76;
+            // Noon
+            // const azimuth = 171.62;
+            // const altitude = 31.76;
 
-        // 9 AM
-        // const azimuth = 124.20;
-        // const altitude = 17.80;
+            // 9 AM
+            // const azimuth = 124.20;
+            // const altitude = 17.80;
 
-        // TEST LAT LONG 50.43560173881614, -104.5553877673448
-        // const latitude = 50.4356017388161;
-        // const longitude = -104.5553877673448;
+            // TEST LAT LONG 50.43560173881614, -104.5553877673448
+            // const latitude = 50.4356017388161;
+            // const longitude = -104.5553877673448;
 
-        if (get(this._connected) === DeviceState.DISCONNECTED) {
-            // The event loop should exit after this, so we just return
-            return;
-        } else if (!this._server) {
-            throw new Error("No server");
-        } else if (this._location === undefined) {
-            throw new Error("No location");
-        } else if (!this._server.connected) {
-            // Sometimes the device disconnects, so we need to reconnect
-            console.debug("Reconnecting...");
-            await this._server.connect();
+            if (get(this._connected) === DeviceState.DISCONNECTED) {
+                // The event loop should exit after this, so we just return
+                return;
+            } else if (!this._server) {
+                throw new Error("No server");
+            } else if (this._location === undefined) {
+                throw new Error("No location");
+            } else if (!this._server.connected) {
+                // Sometimes the device disconnects, so we need to reconnect
+                console.debug("Reconnecting...");
+                await this._server.connect();
+            }
+
+            console.debug("Polling...");
+
+            // Extract long and lat from our device location
+            const coords = (({ latitude, longitude }: GeolocationCoordinates) => ({ latitude, longitude }))(get(this._location).coords);
+
+            // Grabs characteristics from map, saved in map by connect()
+            let azimuthChar = this._characteristics.get(AZIMUTH_CHARACTERISTIC_UUID);
+            let altitudeChar = this._characteristics.get(ALTITUDE_CHARACTERISTIC_UUID);
+            let northChar = this._characteristics.get(NORTH_CHARACTERISTIC_UUID);
+
+            // Extract the azimuth and altitude from the characteristics; we can't read to northChar 
+            const [azimuth, altitude] = await Promise.all([azimuthChar, altitudeChar]
+                .map(async (char) => (char!.value) // char won't be undefined, because sunService is guaranteed to exist
+                    ?.getFloat32(0, true)));
+
+            // If we can't read the azimuth or altitude, return and try again later
+            if (azimuth === undefined || altitude === undefined) { return; }
+
+            // If the sundial supports magnetic declination, send it to the device so the user can align the sundial
+            const magDec = magneticDeclination(coords);
+            await northChar?.writeValue(new Float32Array([magDec]))
+                .catch(() => undefined);
+
+            // Date will get stripped of time in the functions below
+            const date = new Date();
+
+            const d = declination({ ...coords, date });
+            const ha = hourAngle({ ...coords, azimuth, altitude, declination: d });
+            const equationOfTime = eqnOfTime({ ...coords, date });
+            const ast = apparentSolarTime({ date, azimuth, altitude, hourAngle: ha });
+            const lst = localSolarTime({ ...coords, date, azimuth, altitude, hourAngle: ha });
+            const siderealTime = localSiderealTime({ localSolarTime: lst });
+
+            // TEST DATA
+            this._data.set({
+                apparentTime: ast,
+                correctedTime: lst,
+                siderealTime: siderealTime,
+                declination: d,
+                azimuth: azimuth,
+                elevation: altitude,
+                longitude: coords.longitude,
+                latitude: coords.latitude,
+                hourAngle: ha,
+                equationOfTime: equationOfTime,
+                magneticDeclination: magDec
+            });
+        } catch (e) {
+            console.error(e);
+            alert(e);
+            this.disconnect();
         }
-
-        console.debug("Polling...");
-
-        // Extract long and lat from our device location
-        const coords = (({ latitude, longitude }: GeolocationCoordinates) => ({ latitude, longitude }))(get(this._location).coords);
-
-        // Grabs characteristics from map, saved in map by connect()
-        let azimuthChar = this._characteristics.get(AZIMUTH_CHARACTERISTIC_UUID);
-        let altitudeChar = this._characteristics.get(ALTITUDE_CHARACTERISTIC_UUID);
-        let northChar = this._characteristics.get(NORTH_CHARACTERISTIC_UUID);
-
-        // Extract the azimuth and altitude from the characteristics; we can't read to northChar 
-        const [azimuth, altitude] = await Promise.all([azimuthChar, altitudeChar]
-            .map(async (char) => (await char!  // char won't be undefined, because sunService is guaranteed to exist
-                .readValue()
-                .catch((e) => console.log(e)))
-                ?.getFloat32(0, true)));
-
-        // If we can't read the azimuth or altitude, return and try again later
-        if (azimuth === undefined || altitude === undefined) { return; }
-
-        // If the sundial supports magnetic declination, send it to the device so the user can align the sundial
-        const magDec = magneticDeclination(coords);
-        await northChar?.writeValue(new Float32Array([magDec]))
-            .catch(() => undefined);
-
-        // Date will get stripped of time in the functions below
-        const date = new Date();
-
-        const d = declination({ ...coords, date });
-        const ha = hourAngle({ ...coords, azimuth, altitude, declination: d });
-        const equationOfTime = eqnOfTime({ ...coords, date });
-        const ast = apparentSolarTime({ date, azimuth, altitude, hourAngle: ha });
-        const lst = localSolarTime({ ...coords, date, azimuth, altitude, hourAngle: ha });
-        const siderealTime = localSiderealTime({ localSolarTime: lst });
-
-        // TEST DATA
-        this._data.set({
-            apparentTime: ast,
-            correctedTime: lst,
-            siderealTime: siderealTime,
-            declination: d,
-            azimuth: azimuth,
-            elevation: altitude,
-            longitude: coords.longitude,
-            latitude: coords.latitude,
-            hourAngle: ha,
-            equationOfTime: equationOfTime,
-            magneticDeclination: magDec
-        });
     }
 
     async connect() {
@@ -140,7 +144,8 @@ export class BluetoothSundial {
         const device = await navigator.bluetooth.requestDevice({
             filters: [
                 { services: [SUNDIAL_SERVICE_UUID] }
-            ]
+            ],
+            optionalServices: [LOCATION_SERVICE_UUID]
         });
 
         if (device === null) {
@@ -182,22 +187,29 @@ export class BluetoothSundial {
                     }))))
             .then((charArrays) => charArrays.flat());
 
+        const [azimuthChar, altitudeChar, northChar] = chars;
+        azimuthChar?.addEventListener("characteristicvaluechanged", this.eventHandler.bind(this));
+        altitudeChar?.addEventListener("characteristicvaluechanged", this.eventHandler.bind(this));
+        await azimuthChar?.startNotifications();
+        await altitudeChar?.startNotifications();
+
         console.debug("Got characteristics: ", ...chars);
         this._connected.set(DeviceState.READY);
 
         // Start polling for data
         console.debug("Starting event handler");
-        (async () => {
-            // Don't use this._server.connected, because we use that to reconnect
-            // Use get(this._connected) instead
-            while (get(this._connected) === DeviceState.READY) {
-                await new Promise((resolve) => setTimeout(async () => {
-                    // If the sundial is disconnected, this will throw an error, which will exit the loop
-                    await this.eventHandler();
-                    resolve(true);
-                }, POLLING_INTERVAL));
-            }
-        })();
+
+        // (async () => {
+        //     // Don't use this._server.connected, because we use that to reconnect
+        //     // Use get(this._connected) instead
+        //     while (get(this._connected) === DeviceState.READY) {
+        //         await new Promise((resolve) => setTimeout(async () => {
+        //             // If the sundial is disconnected, this will throw an error, which will exit the loop
+        //             await this.eventHandler();
+        //             resolve(true);
+        //         }, POLLING_INTERVAL));
+        //     }
+        // })();
     }
 
     async disconnect() {

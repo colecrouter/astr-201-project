@@ -10,11 +10,9 @@
      - 3.8 Characteristics (page 82)
 */
 
-BLEService sundialService("181A");                               // Environmental Sensing service
-BLEFloatCharacteristic azimuthCharacteristic("2BE1", BLERead);   // Light Distribution ¯\_(ツ)_/¯
-BLEFloatCharacteristic altitudeCharacteristic("2A6C", BLERead);  // Elevation
-
-// TODO: make it work with BLENotify
+BLEService sundialService("181A");                                           // Environmental Sensing service
+BLEFloatCharacteristic azimuthCharacteristic("2BE1", BLERead | BLENotify);   // Light Distribution ¯\_(ツ)_/¯
+BLEFloatCharacteristic altitudeCharacteristic("2A6C", BLERead | BLENotify);  // Elevation
 
 BLEService locationService("1819");                                          // Location and Navigation service
 BLEFloatCharacteristic magneticDeclinationCharacteristic("2AB0", BLEWrite);  // Local North Coordinate

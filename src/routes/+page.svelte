@@ -98,7 +98,6 @@
     }
 
     section > article {
-        padding: 0 3rem;
         display: flex;
         min-height: 20em;
     }
