@@ -42,14 +42,27 @@ void loop() {
     // Get connected device
     BLEDevice central = BLE.central();
 
+    // Example
+    float azimuth = -11.7;
+    float altitude = 0.0;
+
     if (central) {
+        // On initial connection, send current values
+        azimuthCharacteristic.writeValueLE(azimuth);
+        altitudeCharacteristic.writeValueLE(altitude);
+
         while (central.connected()) {
-            // Read characteristics
+            // Read characteristics, update variables
             // TODO
 
-            // Example
-            azimuthCharacteristic.writeValueLE(-11.7);
-            altitudeCharacteristic.writeValueLE(0.0);
+            // TODO uncomment these when values are actually changing
+            // Check if characteristic has changed
+            // if (azimuthCharacteristic.valueLE() != azimuth) {
+            azimuthCharacteristic.writeValueLE(azimuth);
+            // }
+            // if (altitudeCharacteristic.valueLE() != altitude) {
+            altitudeCharacteristic.writeValueLE(altitude);
+            // }
 
             delay(1000);
         }

@@ -26,18 +26,15 @@
     ];
 
     onMount(() => {
-        connected.subscribe((connected) => {
-            if (!connected) {
-                skyColors = defaultSkyColors;
+        connected.subscribe((status) => {
+            if (status !== DeviceState.READY) {
+                skyColors = JSON.parse(JSON.stringify(defaultSkyColors)) as colors;
                 night = true;
             }
         });
 
         sundialData.subscribe((data) => {
-            if (!data) {
-                skyColors = defaultSkyColors;
-                return;
-            }
+            if (!data) return;
 
             // Set dark mode
             night = isNight(data.azimuth);
