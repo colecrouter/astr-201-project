@@ -88,7 +88,6 @@ export class BluetoothSundial {
         // Grabs characteristics from map, saved in map by connect()
         let azimuthChar = this._characteristics.get(AZIMUTH_CHARACTERISTIC_UUID);
         let altitudeChar = this._characteristics.get(ALTITUDE_CHARACTERISTIC_UUID);
-        let northChar = this._characteristics.get(NORTH_CHARACTERISTIC_UUID);
 
         // Extract the azimuth and altitude from the characteristics; we can't read to northChar
         // NOTE: readValue() seems to not work on mobile, which is why we're using notify

@@ -1,5 +1,6 @@
 #include <ArduinoBLE.h>
 #include <QMC5883LCompass.h>
+QMC5883LCompass compass;
 
 /*
     List of assigned numbers/UUIDs for Bluetooth SIG-defined services:
@@ -11,9 +12,9 @@
      - 3.8 Characteristics (page 82)
 */
 
-#define WEST_PIN 0
-#define NORTH_PIN 0
-#define EAST_PIN 0
+#define WEST_PIN 13
+#define NORTH_PIN 12
+#define EAST_PIN 14
 #define NORTH_THRESHOLD 5 // DEG
 
 BLEService sundialService("181A");                                           // Environmental Sensing service
@@ -23,15 +24,18 @@ BLEFloatCharacteristic altitudeCharacteristic("2A6C", BLERead | BLENotify);  // 
 BLEService locationService("1819");                                          // Location and Navigation service
 BLEFloatCharacteristic magneticDeclinationCharacteristic("2AB0", BLEWrite);  // Local North Coordinate
 
-QMC5883LCompass compass;
-
-#define SIGNAL 36
+#define SIGNAL 31
 
 #define NUM_PHOTORESISTORS 26
 #define NUM_PHOTORESISTORGROUPS 13
 #define NUM_PINS 4
 
-uint8_t azimuthPins[NUM_PHOTORESISTORGROUPS] = {
+#define ANGLE_SENSOR1 0
+#define ANGLE_SENSOR2 0
+
+bool status[NUM_PHOTORESISTORS];
+
+uint8_t azimuthPins[NUM_PHOTORESISTORS] = {
   // 36,
   // 39,
   // 34,
@@ -39,7 +43,7 @@ uint8_t azimuthPins[NUM_PHOTORESISTORGROUPS] = {
   32,
   33,
   25,
-  // 26,
+  26,
   // 27,
   // 14,
   // 12,
@@ -77,8 +81,10 @@ bool* getDarkSensors() {
 
     uint16_t value = analogRead(SIGNAL); 
     Serial.printf("SENSOR %d: %d\n", i, value);
+
+    // Because we're grouping up two PRs per pin, we need to do some
+    // work to figure out which sensor is being lit; left or right
     if (value <= lowerThreshold) { 
-      // Serial.printf("PIN %d: LIGHT\n", i);
       status[(i*2)]=false;
       status[(i*2)+1]=false;
       continue;
@@ -97,50 +103,52 @@ bool* getDarkSensors() {
     } else { 
       Serial.println("ruh roh");
     }
-    // Serial.printf("PIN %d: DARK\n", i);
   }
-  Serial.println();
 
   return status;
 }
 
-bool status[NUM_PHOTORESISTORS];
-
 void setup() {
-    // Setup pins
-    for (uint8_t i = 0; i < NUM_PHOTORESISTORGROUPS; i++) {
-      pinMode(azimuthPins[i], OUTPUT);
-    }
-    pinMode(SIGNAL, INPUT);
+  Serial.begin(9600);
+
+  // Setup pins
+  for (uint8_t i = 0; i < NUM_PHOTORESISTORGROUPS; i++) {
+    pinMode(azimuthPins[i], OUTPUT);
+  }
+  pinMode(SIGNAL, INPUT);
 
 
-    // Freeze if Bluetooth initialization fails
-    if (!BLE.begin()) {
-        while (1) {
-        }
-    }
+  // Freeze if Bluetooth initialization fails
+  if (!BLE.begin()) {
+      while (1) {
+      }
+  }
 
-    BLE.setLocalName("Sundial");
-    BLE.setAdvertisedService(sundialService);
+  BLE.setLocalName("Sundial");
+  BLE.setAdvertisedService(sundialService);
 
-    sundialService.addCharacteristic(azimuthCharacteristic);
-    sundialService.addCharacteristic(altitudeCharacteristic);
-    BLE.addService(sundialService);
+  sundialService.addCharacteristic(azimuthCharacteristic);
+  sundialService.addCharacteristic(altitudeCharacteristic);
+  BLE.addService(sundialService);
 
-    // Optional, for true north alignment
-    locationService.addCharacteristic(magneticDeclinationCharacteristic);
-    BLE.addService(locationService);
+  // Optional, for true north alignment
+  locationService.addCharacteristic(magneticDeclinationCharacteristic);
+  BLE.addService(locationService);
 
-    BLE.advertise();
+  BLE.advertise();
+ 
+  compass.init(); 
 }
 
 void loop() {
+    Serial.println(compass.getAzimuth());
+
     // Get connected device
     BLEDevice central = BLE.central();
 
     // Example
     float azimuth = -11.7;
-    float altitude = 0.0;
+    float altitude = 30.0;
 
     if (central) {
         // On initial connection, send current values
@@ -152,11 +160,12 @@ void loop() {
         while (central.connected()) {
             // Read characteristics, update variables
             offset = magneticDeclinationCharacteristic.valueLE();
-            
+                        
             // Convert from magnetic north to true north
             sundialAngle = compass.getAzimuth() + offset;
 
             // Light up LEDs to help the user align the sundial
+            Serial.println(sundialAngle);
             digitalWrite(WEST_PIN, (sundialAngle - NORTH_THRESHOLD > 0));
             digitalWrite(NORTH_PIN, (sundialAngle - NORTH_THRESHOLD <= 0 && sundialAngle + NORTH_THRESHOLD >= 0));
             digitalWrite(EAST_PIN, (sundialAngle + NORTH_THRESHOLD < 0));
@@ -174,17 +183,21 @@ void loop() {
                 litCount++;
               }
             }
-
+            uint8_t oldAzimuth = azimuth;
             azimuth = (360) * (litCount / NUM_PHOTORESISTORS);
+
+            // Get elevation
+            uint8_t oldAltitude = altitude;
+            altitude = atan2(analogRead(ANGLE_SENSOR1), analogRead(ANGLE_SENSOR2));
 
             // TODO uncomment these when values are actually changing
             // Check if characteristic has changed
-            // if (azimuthCharacteristic.valueLE() != azimuth) {
-            azimuthCharacteristic.writeValueLE(azimuth);
-            // }
-            // if (altitudeCharacteristic.valueLE() != altitude) {
-            altitudeCharacteristic.writeValueLE(altitude);
-            // }
+            if (oldAzimuth != azimuth) {
+              azimuthCharacteristic.writeValueLE(azimuth);
+            }
+            if (oldAltitude != altitude) {
+              altitudeCharacteristic.writeValueLE(altitude);
+            }
 
             delay(1000);
         }
