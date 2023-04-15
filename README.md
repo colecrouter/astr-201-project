@@ -28,19 +28,26 @@ That being said, this project could theoretically be used in a situation where t
 The hardware used for this project is as follows:
 
 - BLE enabled Arduino (Arduino Nano 33 BLE, ESP32, etc.)
-- XX GL5516 photoresistors (50mm)
-- TODO: (Optional) name of compass module
-- TODO
+- 26 GL5516 photoresistors (50mm)
+- 13 resistors
+- QMC5883L compass sensor
+- 16-bit multiplexer
 
-\*Insert wiring diagram\*
+![Wiring diagram](./img/circuit.png)
+
+We essentially wire up the photoresistors like this, then into a multiplexer. The multiplexer is then wired to the Arduino. The compass sensor is wired directly to the Arduino.
+
+Make sure to hook up the compass sensors pins to the appropriate pins on the Arduino. For the ESP32, that's the 21 and 22.
+
+![ESP32 pinout](./img/pinout.webp)
 
 ## Software
 
 ### Arduino
 
-> This sketch takes advantage of the ArduinoBLE library, which is not included in the Arduino IDE by default. To install it, open the Arduino IDE, go to `Tools > Manage Libraries...`, search for `ArduinoBLE`, and install the latest version.
+> This sketch takes advantage of the ArduinoBLE library, which is not included in the Arduino IDE by default. To install it, open the Arduino IDE, go to `Tools > Manage Libraries...`, search for `ArduinoBLE` and `QMC5883LCompass`, and install the latest version.
 
-Downlod the sketch from the `arduino` folder and upload it to your Arduino.
+Download the sketch from the `arduino` folder and upload it to your Arduino.
 
 ### Website
 
@@ -57,4 +64,4 @@ npm run preview
 
 ## Images
 
-\*Insert images of the sundial\*
+![Sundial](./img/DSC_0024.JPG)
